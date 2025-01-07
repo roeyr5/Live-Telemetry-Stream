@@ -1,0 +1,47 @@
+# Ignore build results
+/bin/
+/obj/
+*.exe
+*.dll
+*.pdb
+*.appx
+*.appxbundle
+*.msix
+*.msixbundle
+*.appinstaller
+
+# Ignore Visual Studio temporary files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Ignore NuGet packages
+*.nupkg
+packages/
+
+# Ignore other temporary files
+*.log
+*.cache
+*.tmp
+*.bak
+*.swp
+*.DS_Store
+*.db
+
+# Ignore solution files
+*.sln
+
+# Ignore build output directories
+bin/
+obj/
+
+# Ignore user-specific files
+*.user
+*.suo
+*.vs/
+
+# Ignore other common files
+appsettings.Development.json
+appsettings.json
