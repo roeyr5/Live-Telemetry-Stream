@@ -31,19 +31,19 @@ namespace LTS.Controllers
             IConsumeInstance.StopConsume();
         }
 
-        [HttpPost("AddParameter")]
-        public IActionResult Add([FromBody] string parameter)
-        {
-            IConsumeInstance.AddParameter(parameter);
-            return Ok(new { message = "Parameter added successfully" });
-        }
+        //[HttpPost("AddParameter")]
+        //public IActionResult Add([FromBody] string uavName , string parameter)
+        //{
+        //    IConsumeInstance.AddParameter(uavName , parameter);
+        //    return Ok(new { message = "Parameter added successfully" });
+        //}
 
-        [HttpPost("RemoveParameter")]
-        public IActionResult Remove([FromBody] string parameter)
-        {
-            IConsumeInstance.RemoveParameter(parameter);
-            return Ok(new { message = "Parameter removed successfully" });
+        //[HttpPost("RemoveParameter")]
+        //public IActionResult Remove([FromBody] string uavName, string parameter  )
+        //{
+        //    IConsumeInstance.RemoveParameter(parameter);
+        //    return Ok(new { message = "Parameter removed successfully" });
 
-        }
+        //}
     }
 }

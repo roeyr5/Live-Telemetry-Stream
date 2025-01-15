@@ -14,20 +14,41 @@ namespace LTS.Hubs
         {
             _iconsumeservice = iconsumeService;
         }
-
-        public async Task AddParameter(string parameter)
+        public async Task JoinGroup(string uavName)
         {
-            _iconsumeservice.AddParameter(parameter);
-            await Clients.All.SendAsync("ParameterAdded", parameter);
+            await Groups.AddToGroupAsync(Context.ConnectionId, uavName);
+            await Clients.Caller.SendAsync("GroupJoined", uavName);
         }
-        public async Task RemoveParameter(string parameter)
+
+        public async Task LeaveGroup(string uavName)
         {
-            _iconsumeservice.RemoveParameter(parameter);
-            await Clients.All.SendAsync("ParameterRemoved", parameter);
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, uavName);
+            await Clients.Caller.SendAsync("GroupLeft", uavName);
+        }
+
+        public async Task AddParameter(string uavName , string parameter)
+        {
+            _iconsumeservice.AddParameter(Context.ConnectionId, uavName, parameter);
+            await Clients.Caller.SendAsync("ParameterAdded", uavName, parameter);
+        }
+        public async Task RemoveParameter(string uavName, string parameter)
+        {
+            _iconsumeservice.RemoveParameter(Context.ConnectionId, uavName, parameter);
+            await Clients.Caller.SendAsync("ParameterRemoved", uavName, parameter);
         }
         public async Task SendMessage(Dictionary<string,string> ParametersRequired , Confluent.Kafka.Partition partition)
         {
             await Clients.All.SendAsync("ReceiveMessage", ParametersRequired , partition);
         }
+
+        public override Task OnDisconnectedAsync(Exception exception)
+        {
+            _iconsumeservice.RemoveConnection(Context.ConnectionId);
+            return base.OnDisconnectedAsync(exception);
+        }
     }
 }
+
+
+
+
