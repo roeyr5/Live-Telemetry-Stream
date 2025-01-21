@@ -59,7 +59,7 @@ namespace LTS.Services
                         {
                             uavsData[uavName] = new Dictionary<string, string>();
                         }
-
+                        Console.WriteLine("consuming from  : "+ uavName);
                         //Console.WriteLine("Received Message: " + jsonMessage);
                         foreach (var key in uavsData[uavName].Keys) //requiredValues
                         {
@@ -75,7 +75,7 @@ namespace LTS.Services
                             Console.WriteLine($"{item.Key}: {item.Value}");
                         }
 
-                        await _hubContext.Clients.Group(uavName).SendAsync("ReceiveMessage", uavsData[uavName], consumeResult.Partition);
+                        await _hubContext.Clients.Group(uavName).SendAsync("ReceiveMessage", uavsData[uavName], uavName);
                     }
                     catch (ConsumeException e)
                     {
@@ -89,6 +89,7 @@ namespace LTS.Services
         }
         public void AddParameter(string connectionId, string uavName, string parameter) // //also to the uavsdata
         {
+            Console.WriteLine("added : " +parameter);
             if (!connectionParameters.ContainsKey(connectionId))
             {
                 connectionParameters[connectionId] = new Dictionary<string, List<string>>();
@@ -205,9 +206,9 @@ namespace LTS.Services
             switch (partition)
             {
                 case (int)UAVPartition.FiberBox.Down:
-                    return $"{topic}FiberBoxDown";
+                    return $"{topic}FBDown";
                 case (int)UAVPartition.FiberBox.Up:
-                    return $"{topic}FiberBoxUp";
+                    return $"{topic}FBUp";
                 case (int)UAVPartition.Mission.Down:
                     return $"{topic}MissionDown";
                 case (int)UAVPartition.Mission.Up:
