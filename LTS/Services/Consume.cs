@@ -60,8 +60,7 @@ namespace LTS.Services
                             uavsData[uavName] = new Dictionary<string, string>();
                         }
                         Console.WriteLine("consuming from  : "+ uavName);
-                        //Console.WriteLine("Received Message: " + jsonMessage);
-                        foreach (var key in uavsData[uavName].Keys) //requiredValues
+                        foreach (var key in uavsData[uavName].Keys) 
                         {
                             if (jsonObject.ContainsKey(key))
                             {

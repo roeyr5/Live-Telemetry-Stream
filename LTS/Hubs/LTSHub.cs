@@ -36,16 +36,16 @@ namespace LTS.Hubs
             _iconsumeservice.RemoveParameter(Context.ConnectionId, uavName, parameter);
             await Clients.Caller.SendAsync("ParameterRemoved", uavName, parameter);
         }
-        public async Task SendMessage(Dictionary<string,string> ParametersRequired , Confluent.Kafka.Partition partition)
-        {
-            await Clients.All.SendAsync("ReceiveMessage", ParametersRequired , partition);
-        }
-
         public override Task OnDisconnectedAsync(Exception exception)
         {
             _iconsumeservice.RemoveConnection(Context.ConnectionId);
             return base.OnDisconnectedAsync(exception);
         }
+        public async Task SendMessage(Dictionary<string,string> ParametersRequired , Confluent.Kafka.Partition partition)
+        {
+            await Clients.All.SendAsync("ReceiveMessage", ParametersRequired , partition);
+        }
+
     }
 }
 

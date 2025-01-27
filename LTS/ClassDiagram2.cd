@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="LTS.Services.Consume">
+    <Position X="10" Y="2.25" Width="2" />
+    <TypeIdentifier>
+      <HashCode>gAAAEAAAECEAAAIAAAAAAAACAAAAAAAQAAAAAhQBAAA=</HashCode>
+      <FileName>Services\Consume.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="LTS.Hubs.LTSHub">
+    <Position X="12.25" Y="2.75" Width="2.25" />
+    <TypeIdentifier>
+      <HashCode>EAACAAAAAAEAgAAEACAAAAACAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Hubs\LTSHub.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Interface Name="LTS.Services.IConsume">
+    <Position X="8.25" Y="3" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAACEAAAAAAAAAAAACAAAAAAAAAAAAAhABAAA=</HashCode>
+      <FileName>Services\IConsume.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>
