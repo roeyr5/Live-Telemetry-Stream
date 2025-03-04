@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using LTS.Services;
+using LTS.Entities;
 
 namespace LTS.Controllers
 {
@@ -18,18 +19,12 @@ namespace LTS.Controllers
             IConsumeInstance = _IConsume;
         }
 
-        [HttpGet("StartConsuming")]
-        public void Start()
+        [HttpPost("AddTopic")]
+        public Task<OperationResult> AddNewTopic([FromBody] ChannelDTO request)
         {
-            IConsumeInstance.Start();
-            IConsumeInstance.StartConsume();   
+            return IConsumeInstance.Subscribe(request.uavNumber); 
         }
 
-        [HttpGet("StopConsuming")]
-        public void Stop()
-        {
-            IConsumeInstance.StopConsume();
-        }
 
         //[HttpPost("AddParameter")]
         //public IActionResult Add([FromBody] string uavName , string parameter)
