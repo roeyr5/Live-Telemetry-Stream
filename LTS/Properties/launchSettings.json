@@ -19,9 +19,9 @@
     },
     "LTS": {
       "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "launchUrl": "swagger",
+      "dotnetRunMessages": false,
+      "launchBrowser": false,
+      //"launchUrl": "swagger",
       "applicationUrl": "http://localhost:2000",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
