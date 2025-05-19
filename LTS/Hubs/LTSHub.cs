@@ -10,40 +10,39 @@ namespace LTS.Hubs
     public class LTSHub : Hub
     {
         private readonly IConsume _iconsumeservice;
-        private static Dictionary<string, List<string>> connectionGroups = new Dictionary<string, List<string>>();
+        private static Dictionary<string, List<string>> _connectionGroups;
 
         public LTSHub(IConsume iconsumeService)
         {
             _iconsumeservice = iconsumeService;
+            _connectionGroups = new();
         }
         public async Task JoinGroup(string groupName)
         {
-            if (!connectionGroups.ContainsKey(Context.ConnectionId))
+            if (!_connectionGroups.ContainsKey(Context.ConnectionId))
             {
-                connectionGroups[Context.ConnectionId] = new List<string>();
+                _connectionGroups[Context.ConnectionId] = new List<string>();
             }
 
-            if (!connectionGroups[Context.ConnectionId].Contains(groupName))
+            if (!_connectionGroups[Context.ConnectionId].Contains(groupName))
             {
-                connectionGroups[Context.ConnectionId].Add(groupName);
+                _connectionGroups[Context.ConnectionId].Add(groupName);
                 await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-                Console.WriteLine($"Connection {Context.ConnectionId} joined group {groupName}");
             }
             await Clients.Caller.SendAsync("GroupJoined", groupName);
         }
 
         public async Task LeaveGroup(string groupName)
         {
-            if (connectionGroups.ContainsKey(Context.ConnectionId) && connectionGroups[Context.ConnectionId].Contains(groupName))
+            if (_connectionGroups.ContainsKey(Context.ConnectionId) && _connectionGroups[Context.ConnectionId].Contains(groupName))
             {
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
-                connectionGroups[Context.ConnectionId].Remove(groupName);
-                if (connectionGroups[Context.ConnectionId].Count == 0)
+                _connectionGroups[Context.ConnectionId].Remove(groupName);
+                if (_connectionGroups[Context.ConnectionId].Count == 0)
                 {
-                    connectionGroups.Remove(Context.ConnectionId);
+                    _connectionGroups.Remove(Context.ConnectionId);
                 }
                 await Clients.Caller.SendAsync("GroupLeft", groupName);
-                Console.WriteLine($"Connection {Context.ConnectionId} left group {groupName}");
             }
             await Clients.Caller.SendAsync("GroupLeft", groupName);
         }
@@ -64,19 +63,23 @@ namespace LTS.Hubs
             _iconsumeservice.RemoveParameter(Context.ConnectionId, uavName, parameter);
             await Clients.Caller.SendAsync("ParameterRemoved", uavName, parameter);
         }
+
+        public override async Task OnConnectedAsync()
+        {
+            _iconsumeservice.AddConnection(Context.ConnectionId);
+        }
         public override async Task OnDisconnectedAsync(Exception exception)
         {
-            if (connectionGroups.ContainsKey(Context.ConnectionId))
+            if (_connectionGroups.ContainsKey(Context.ConnectionId))
             {
-                var groups = connectionGroups[Context.ConnectionId];
+                List<string> groups = _connectionGroups[Context.ConnectionId];
 
                 foreach (var group in groups)
                 {
                     await Groups.RemoveFromGroupAsync(Context.ConnectionId, group);
-                    Console.WriteLine($"Connection {Context.ConnectionId} left group {group}");
                 }
 
-                connectionGroups.Remove(Context.ConnectionId);
+                _connectionGroups.Remove(Context.ConnectionId);
             }
             _iconsumeservice.RemoveConnection(Context.ConnectionId);
             await base.OnDisconnectedAsync(exception);

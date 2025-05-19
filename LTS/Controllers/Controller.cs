@@ -12,17 +12,17 @@ namespace LTS.Controllers
     [Route("[controller]")]
     public class Controller : ControllerBase
     {
-        private readonly IConsume IConsumeInstance;
+        private readonly IConsume _iconsumeInstance;
 
         public Controller(IConsume _IConsume)
         {
-            IConsumeInstance = _IConsume;
+            _iconsumeInstance = _IConsume;
         }
 
         [HttpPost("AddTopic")]
-        public Task<OperationResult> AddNewTopic([FromBody] ChannelDTO request)
+        public OperationResult AddNewTopic([FromBody] ChannelDTO request)
         {
-            return IConsumeInstance.Subscribe(request.uavNumber); 
+            return _iconsumeInstance.Subscribe(request.uavNumber); 
         }
 
 

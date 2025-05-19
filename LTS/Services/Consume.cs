@@ -18,17 +18,19 @@ namespace LTS.Services
     {
         private static CancellationTokenSource source = new();
         private readonly KafkaSettings _kafkaSettings;
-        private static Dictionary<string, Dictionary<string, string>> uavsData = new Dictionary<string, Dictionary<string, string>>(); // 100fiberbox - dict <height,100m>
-        private static Dictionary<string, Dictionary<string, List<string>>> connectionParameters = new Dictionary<string, Dictionary<string, List<string>>>(); // connectionID - dict<100fiberboxup ,list<height,veolicty>>>
+        private static Dictionary<string, Dictionary<string, string>> _uavsData;// <100fiberbox> - dict <height,100m>
+        private static Dictionary<string, Dictionary<string, List<string>>> _connectionParameters; // <connectionID> - dict<100fiberboxup ,list<parametrsNames>>>
         private static bool isStartConsume = false;
 
         private readonly IHubContext<LTSHub> _hubContext;
-        private List<int> subscribedTopics = new List<int>();
-        private IConsumer<Ignore, string> consumer;
-        private ConsumerConfig config;
+        private List<int> _subscribedTailNumbers;
+        private IConsumer<Ignore, string> _consumerBuilder;
+        private ConsumerConfig _consumerConfig;
 
-        private static readonly object uavDataLock = new object();
-        private static readonly object connectionParametersLock = new object();
+        private static readonly object uavDataLock = new();
+        private static readonly object connectionParametersLock = new();
+
+        private readonly string GROUP_MESSAGE = "ReceiveMessage";
 
         private Timer _timer;
 
@@ -37,43 +39,38 @@ namespace LTS.Services
             _hubContext = hubContext;
             _kafkaSettings = kafkaSettings.Value;
 
-            config = new ConsumerConfig
+            _subscribedTailNumbers = new();
+            _uavsData = new();
+            _connectionParameters = new();
+
+            _consumerConfig = new ConsumerConfig
             {
                 BootstrapServers = _kafkaSettings.BootstrapServers,
                 GroupId = _kafkaSettings.GroupId,
                 AutoOffsetReset = AutoOffsetReset.Earliest,
             };
-            consumer = new ConsumerBuilder<Ignore, string>(config).Build();
+            _consumerBuilder = new ConsumerBuilder<Ignore, string>(_consumerConfig).Build();
         }
 
-        public Task<OperationResult> Subscribe(int topic)
+        public OperationResult Subscribe(int topic)
         {
-            if (consumer == null)
-                return Task.FromResult(OperationResult.Failed);
+            if (_consumerBuilder == null)
+                return OperationResult.Failed;
 
-            if (!subscribedTopics.Contains(topic))
+            if (!_subscribedTailNumbers.Contains(topic))
             {
-                subscribedTopics.Add(topic);
+                _subscribedTailNumbers.Add(topic);
             }
+            _consumerBuilder.Subscribe(_subscribedTailNumbers.Select(t => t.ToString()).ToArray());
 
-            List<TopicPartition> topicPartitions = new List<TopicPartition>();
 
-            foreach (int currentTopic in subscribedTopics)
-            {
-                topicPartitions.Add(new TopicPartition(currentTopic.ToString(), new Partition(0)));
-                topicPartitions.Add(new TopicPartition(currentTopic.ToString(), new Partition(1)));
-                topicPartitions.Add(new TopicPartition(currentTopic.ToString(), new Partition(2)));
-                topicPartitions.Add(new TopicPartition(currentTopic.ToString(), new Partition(3)));
-            }
-
-            consumer.Assign(topicPartitions);
-            Console.WriteLine("Subscribed to new topics with partitions 0, 1, 2, and 3.");
+            Console.WriteLine("Subscribed to new topics with partitions 0-  3.");
             if (!isStartConsume)
                 StartConsume();
 
-            return Task.FromResult(OperationResult.Success);
+            return OperationResult.Success;
         }
-        public Task<OperationResult> StartConsume()
+        public OperationResult StartConsume()
         {
             isStartConsume = true;
             Console.WriteLine("Starting stream data");
@@ -84,38 +81,28 @@ namespace LTS.Services
                 {
                     try
                     {
-                        var consumeResult = consumer.Consume(source.Token);
+                        var consumeResult = _consumerBuilder.Consume(source.Token);
                         string uavName = GetUAVName(consumeResult.Topic, consumeResult.Partition.Value);
 
-                        if (!connectionParameters.Values.Any(c => c.ContainsKey(uavName)))
+                        if (!_connectionParameters.Values.Any(c => c.ContainsKey(uavName)))
                             continue;
 
-                        string jsonMessage = consumeResult.Message.Value;
-                        JObject jsonObject = JObject.Parse(jsonMessage);
+                        string frameDataParameters = consumeResult.Message.Value;
+                        JObject frameDataObject = JObject.Parse(frameDataParameters);
 
                         lock (uavDataLock)
                         {
-                            if (!uavsData.ContainsKey(uavName))
+                            if (!_uavsData.ContainsKey(uavName))
+                                _uavsData[uavName] = new Dictionary<string, string>();
+
+                            foreach (string parameter in _uavsData[uavName].Keys)
                             {
-                                uavsData[uavName] = new Dictionary<string, string>();
-                            }
-                            Console.WriteLine("consuming from  : " + uavName);
-                            foreach (var key in uavsData[uavName].Keys)
-                            {
-                                if (jsonObject.ContainsKey(key))
+                                if (frameDataObject.ContainsKey(parameter))
                                 {
-                                    uavsData[uavName][key] = jsonObject[key].ToString();
+                                    _uavsData[uavName][parameter] = frameDataObject[parameter].ToString();
                                 }
                             }
                         }
-
-                        //Console.WriteLine($"Updated Data for {uavName}:");
-                        //foreach (var item in uavsData[uavName])
-                        //{
-                        //    Console.WriteLine($"{item.Key}: {item.Value}");
-                        //}
-
-                        //await _hubContext.Clients.Group(uavName).SendAsync("ReceiveMessage", uavsData[uavName], uavName);
                     }
                     catch (ConsumeException e)
                     {
@@ -125,174 +112,170 @@ namespace LTS.Services
                 }
             });
 
-            _timer = new Timer(_ => _ = SendDataToClientsAsync(),
-              null,
-              TimeSpan.Zero,
-              TimeSpan.FromSeconds(1));
+            _timer = new Timer(_ => _ = SendDataToClientsAsync(), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
 
-            return Task.FromResult(OperationResult.Success);
+            return OperationResult.Success;
+        }
+
+        public void AddConnection(string connectionId)
+        {
+            lock (connectionParametersLock)
+            {
+                if (!_connectionParameters.ContainsKey(connectionId))
+                    _connectionParameters[connectionId] = new Dictionary<string, List<string>>();
+            }
         }
         public void AddParameter(string connectionId, string uavName, string parameter) // also to the uavsdata
         {
-            Console.WriteLine("added : " + parameter + " for uav: " + uavName);
 
             lock (connectionParametersLock)
             {
-                if (!connectionParameters.ContainsKey(connectionId))
-                {
-                    connectionParameters[connectionId] = new Dictionary<string, List<string>>();
-                }
+                if (!_connectionParameters[connectionId].ContainsKey(uavName))
+                    _connectionParameters[connectionId][uavName] = new List<string>();
 
-                if (!connectionParameters[connectionId].ContainsKey(uavName))
-                {
-                    connectionParameters[connectionId][uavName] = new List<string>();
-                }
-
-                if (!connectionParameters[connectionId][uavName].Contains(parameter))
-                {
-                    connectionParameters[connectionId][uavName].Add(parameter);
-                }
+                if (!_connectionParameters[connectionId][uavName].Contains(parameter))
+                    _connectionParameters[connectionId][uavName].Add(parameter);
             }
 
             lock (uavDataLock)
             {
-                if (!uavsData.ContainsKey(uavName)) //uav name = 100 + mission => 100MissionUp
-                {
-                    uavsData[uavName] = new Dictionary<string, string>();
-                }
+                if (!_uavsData.ContainsKey(uavName))
+                    _uavsData[uavName] = new Dictionary<string, string>();
 
-                if (!uavsData[uavName].ContainsKey(parameter))
-                {
-                    uavsData[uavName][parameter] = "";
-                }
+                if (!_uavsData[uavName].ContainsKey(parameter))
+                    _uavsData[uavName][parameter] = string.Empty;
             }
         }
 
         public void RemoveParameter(string connectionId, string uavName, string parameter)
         {
+
+            RemoveParameterFromConnection(connectionId, uavName, parameter);
+            bool isRequired = IsParameterRequiredByAnyConnection(uavName, parameter);
+
+            if (!isRequired)
+                RemoveParameterFromUav(uavName, parameter);
+        }
+
+        private static void RemoveParameterFromConnection(string connectionId, string uavName, string parameter)
+        {
             lock (connectionParametersLock)
             {
-                if (connectionParameters.ContainsKey(connectionId) && connectionParameters[connectionId].ContainsKey(uavName))
+                if (_connectionParameters.ContainsKey(connectionId) && _connectionParameters[connectionId].ContainsKey(uavName))
                 {
-                    connectionParameters[connectionId][uavName].Remove(parameter);
+                    _connectionParameters[connectionId][uavName].Remove(parameter);
 
-                    if (connectionParameters[connectionId][uavName].Count == 0)
-                    {
-                        connectionParameters[connectionId].Remove(uavName);
-                    }
+                    if (_connectionParameters[connectionId][uavName].Count == 0)
+                        _connectionParameters[connectionId].Remove(uavName);
 
-                    if (connectionParameters[connectionId].Count == 0)
-                    {
-                        connectionParameters.Remove(connectionId);
-                    }
+                    if (_connectionParameters[connectionId].Count == 0)
+                        _connectionParameters.Remove(connectionId);
                 }
             }
+        }
 
-            bool parameterRequired = false;
-            foreach (var connection in connectionParameters)
+        private bool IsParameterRequiredByAnyConnection(string uavName, string parameter)
+        {
+            lock (connectionParametersLock)
             {
-                if (connection.Value.ContainsKey(uavName) && connection.Value[uavName].Contains(parameter))
+                foreach (var connection in _connectionParameters)
                 {
-                    parameterRequired = true;
-                    break;
-                }
-            }
-
-            if (!parameterRequired)
-            {
-                lock (uavDataLock)
-                {
-                    if (uavsData.ContainsKey(uavName))
+                    if (connection.Value.ContainsKey(uavName))
                     {
-                        uavsData[uavName].Remove(parameter);
-
-                        if (uavsData[uavName].Count == 0)
+                        foreach (string connectionParameter in connection.Value[uavName])
                         {
-                            uavsData.Remove(uavName);
+                            if (connectionParameter == parameter)
+                                return true;
                         }
                     }
                 }
             }
+            return false;
         }
+
+        private static void RemoveParameterFromUav(string uavName, string parameter)
+        {
+            lock (uavDataLock)
+            {
+                if (_uavsData.ContainsKey(uavName))
+                {
+                    _uavsData[uavName].Remove(parameter);
+
+                    if (_uavsData[uavName].Count == 0)
+                        _uavsData.Remove(uavName);
+                }
+            }
+        }
+
 
         public void RemoveConnection(string connectionId)
         {
             lock (connectionParametersLock)
             {
-                if (connectionParameters.ContainsKey(connectionId))
+                if (!_connectionParameters.ContainsKey(connectionId))
                 {
-                    foreach (var uavEntry in connectionParameters[connectionId])
-                    {
-                        string uavName = uavEntry.Key;
-                        List<string> parameters = uavEntry.Value;
-
-                        foreach (var parameter in parameters)
-                        {
-                            bool parameterRequired = false;
-
-                            foreach (var connection in connectionParameters)
-                            {
-                                if (connection.Key != connectionId && connection.Value.ContainsKey(uavName) && connection.Value[uavName].Contains(parameter))
-                                {
-                                    parameterRequired = true;
-                                    break;
-                                }
-                            }
-
-                            if (!parameterRequired)
-                            {
-                                lock (uavDataLock)
-                                {
-                                    if (uavsData.ContainsKey(uavName))
-                                    {
-                                        uavsData[uavName].Remove(parameter);
-                                        if (uavsData[uavName].Count == 0)
-                                        {
-                                            uavsData.Remove(uavName);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    connectionParameters.Remove(connectionId);
+                    return;
                 }
+
+                foreach (KeyValuePair<string, List<string>> uavEntry in _connectionParameters[connectionId])
+                {
+                    string uavName = uavEntry.Key;
+                    List<string> parameters = uavEntry.Value;
+
+                    foreach (string parameter in parameters)
+                    {
+                        if (!IsParameterStillNeeded(uavName, parameter))
+                            RemoveParameterFromUav(uavName, parameter);
+                    }
+                }
+
+                _connectionParameters.Remove(connectionId);
             }
         }
-  
+
+        private bool IsParameterStillNeeded(string uavName, string parameter)
+        {
+            foreach (KeyValuePair<string, Dictionary<string, List<string>>> connection in _connectionParameters)
+            {
+                if (connection.Value.ContainsKey(uavName) && connection.Value[uavName].Contains(parameter))
+                    return true;
+            }
+            return false;
+        }
+
         private async Task SendDataToClientsAsync()
         {
             try
             {
-                Dictionary<string, Dictionary<string, string>> copy;
+                Dictionary<string, Dictionary<string, string>> uavsDataCopy;
 
                 lock (uavDataLock)
                 {
-                    copy = uavsData.ToDictionary( entry => entry.Key, entry => new Dictionary<string, string>(entry.Value));
+                    uavsDataCopy = _uavsData.ToDictionary(
+                        entry => entry.Key,
+                        entry => new Dictionary<string, string>(entry.Value)
+                    );
                 }
 
-                foreach (var uavEntry in copy)
+                foreach (var uavNumber in uavsDataCopy)
                 {
-                    string uavName = uavEntry.Key;
-                    var data = uavEntry.Value;
+                    string uavName = uavNumber.Key;
+                    Dictionary<string, string> data = uavNumber.Value;
 
                     bool hasConnection;
                     lock (connectionParametersLock)
-                    {
-                        hasConnection = connectionParameters.Values.Any(c => c.ContainsKey(uavName));
-                    }
+                        hasConnection = _connectionParameters.Values.Any(c => c.ContainsKey(uavName));
 
                     if (hasConnection)
-                    {
-                        await _hubContext.Clients.Group(uavName).SendAsync("ReceiveMessage", data, uavName);
-                    }
+                        await _hubContext.Clients.Group(uavName).SendAsync(GROUP_MESSAGE, data, uavName);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in timer callback: {ex.Message}");
+                Console.WriteLine($"error in group message : {ex.Message}");
             }
         }
+
         public void StopConsume()
         {
             source.Cancel();
@@ -304,14 +287,14 @@ namespace LTS.Services
                 source = new();
             }
         }
-        private string GetUAVName(string topic, int partition)
+        private static string GetUAVName(string topic, int partition)
         {
             switch (partition)
             {
                 case (int)UAVPartition.FiberBox.Down:
-                    return $"{topic}FBDown";
+                    return $"{topic}FiberBoxDown";
                 case (int)UAVPartition.FiberBox.Up:
-                    return $"{topic}FBUp";
+                    return $"{topic}FiberBoxUp";
                 case (int)UAVPartition.Mission.Down:
                     return $"{topic}MissionDown";
                 case (int)UAVPartition.Mission.Up:

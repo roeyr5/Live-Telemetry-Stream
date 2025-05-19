@@ -2,23 +2,26 @@
 <ClassDiagram MajorVersion="1" MinorVersion="1">
   <Class Name="LTS.Services.Consume">
     <Position X="10" Y="2.25" Width="2" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+    </Compartments>
     <TypeIdentifier>
-      <HashCode>gAAAEAAAECEAAAIAAAAAAAACAAAAAAAQAAAAAhQBAAA=</HashCode>
+      <HashCode>gQACEAAAECMgAAIAAAAAAAACAAACggIQAAAAAhQBAAI=</HashCode>
       <FileName>Services\Consume.cs</FileName>
     </TypeIdentifier>
     <Lollipop Position="0.2" />
   </Class>
   <Class Name="LTS.Hubs.LTSHub">
-    <Position X="12.25" Y="2.75" Width="2.25" />
+    <Position X="7.25" Y="3.25" Width="2.25" />
     <TypeIdentifier>
-      <HashCode>EAACAAAAAAEAgAAEACAAAAACAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <HashCode>EAAGAAAAAAEAgAAEACAAAAACAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>Hubs\LTSHub.cs</FileName>
     </TypeIdentifier>
   </Class>
   <Interface Name="LTS.Services.IConsume">
-    <Position X="8.25" Y="3" Width="1.5" />
+    <Position X="7.75" Y="0.75" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAACEAAAAAAAAAAAACAAAAAAAAAAAAAhABAAA=</HashCode>
+      <HashCode>AAAAAAAAACEAAAAAAAAAAAACAAACAAAAAAAAAhABAAA=</HashCode>
       <FileName>Services\IConsume.cs</FileName>
     </TypeIdentifier>
   </Interface>
